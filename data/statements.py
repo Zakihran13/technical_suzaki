@@ -13,7 +13,15 @@ async def process_chunk(
 ):
     batch_operations = [
         UpdateOne(
-            {col: record[col] for col in conflict_cols}, {"$set": record}, upsert=True
+            {col: record[col] for col in conflict_cols},
+            {
+                "$set": {
+                    key: value
+                    for key, value in record.items()
+                    if key != "_id" and key not in conflict_cols
+                }
+            },
+            upsert=True,
         )
         for record in chunk
     ]

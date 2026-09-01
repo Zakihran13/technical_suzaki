@@ -5,14 +5,20 @@ from dotenv import load_dotenv
 import base64
 
 from projects.client.client import BaseAPIClient
+from projects.utils.rate_limiter import AsyncRateLimiter
 
 
 class SpotifyClient(BaseAPIClient):
     BASE_URL = "https://api.spotify.com/v1"
     TOKEN_URL = "https://accounts.spotify.com/api/token"
 
-    def __init__(self, client_id: str, client_secret: str):
-        super().__init__()
+    def __init__(
+        self,
+        client_id: str,
+        client_secret: str,
+        rate_limiter: AsyncRateLimiter | None = None,
+    ):
+        super().__init__(rate_limiter=rate_limiter)
 
         self.client_id = client_id
         self.client_secret = client_secret

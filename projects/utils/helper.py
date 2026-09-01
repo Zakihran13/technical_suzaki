@@ -65,26 +65,49 @@ def load_song_data(data_path: List[Any] | None = None):
     return pd.read_csv(data_path[0])
 
 
-def _sanitize_query_value(value: str) -> str:
-    # double quotes break Spotify's phrase grouping, so strip them
-    return str(value).replace('"', "").strip()
+# def _sanitize_query_value(value: str) -> str:
+#     # double quotes break Spotify's phrase grouping, so strip them
+#     return str(value).replace('"', "").strip()
 
 
-def construct_search_query(data: list[dict]):
-    constructed_query = []
+def construct_multisearch_query(data: list[dict]) -> list[list[str]]:
+    """Build ordered Spotify search query candidates for each song."""
+    constructed_queries = []
 
     for n in data:
-        song_name = _sanitize_query_value(n["SONG TITLE"])
-        artist_name = _sanitize_query_value(n["ORIGINAL ARTIST"])
-        n["q"] = (
-            f'track:"{song_name}" artist:"{artist_name}"'
-            if artist_name
-            else f'track:"{song_name}"'
-        )
+        song_name = n["SONG TITLE"]
+        artist_name = n["ORIGINAL ARTIST"]
+        queries = [f'track:"{song_name}"']
 
-        constructed_query.append(n)
+        if artist_name:
+            queries = [
+                f"track:{song_name} artist:{artist_name}",
+                *queries,
+                f'artist:"{artist_name}"',
+                f"{song_name} {artist_name}",
+            ]
 
-    return constructed_query
+        constructed_queries.append(queries)
+
+    return constructed_queries
+
+
+def construct_search_query(data: list[dict]) -> list[str]:
+    """Build ordered Spotify search query candidates for each song."""
+    constructed_queries = []
+
+    for n in data:
+        song_name = n["SONG TITLE"]
+        artist_name = n["ORIGINAL ARTIST"]
+
+        if artist_name:
+            queries = f"track:{song_name} artist:{artist_name}"
+        else:
+            queries = f'track:{song_name}'
+
+        constructed_queries.append(queries)
+
+    return constructed_queries
 
 
 def log_bulk_write_results(results: list) -> None:
