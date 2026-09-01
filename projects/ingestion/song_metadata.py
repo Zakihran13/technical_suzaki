@@ -79,7 +79,7 @@ async def exec_spotify_metadata(song_data_df: pd.DataFrame = pd.DataFrame([])):
         name="code_unique",
     )
 
-    song_data = split_batch(song_data_df.to_dict("records")[:15], 5)
+    song_data = split_batch(song_data_df.to_dict("records")[:50], 10)
     rate_limiter = AsyncRateLimiter(max_rate=SPOTIFY_MAX_REQUESTS_PER_SECOND)
 
     tasks = [
