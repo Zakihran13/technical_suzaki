@@ -61,6 +61,13 @@ class SpotifyClient(BaseAPIClient):
             },
         )
 
+    async def next_search_page(self, search_result: dict) -> dict | None:
+        next_url = search_result["tracks"]["next"]
+        if next_url is None:
+            return None
+
+        return await self.request("GET", next_url)
+
     async def artist(self, artist_id: str):
         return await self.request(
             "GET",

@@ -47,6 +47,7 @@ class BaseAPIClient:
             **await self.auth_headers(),
             **(headers or {}),
         }
+        url = endpoint if endpoint.startswith(("http://", "https://")) else self.BASE_URL + endpoint
 
         delay = self.initial_backoff
 
@@ -54,7 +55,7 @@ class BaseAPIClient:
             try:
                 response = await self.client.request(
                     method,
-                    self.BASE_URL + endpoint,
+                    url,
                     params=params,
                     json=json,
                     headers=headers,

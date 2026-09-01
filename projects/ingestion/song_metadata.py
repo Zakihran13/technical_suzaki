@@ -18,6 +18,20 @@ from data.client import get_async_mongodb
 from data.statements import upsert_data
 
 
+async def get_all_spotify_items(
+    app: SpotifyClient, search_result: Dict[str, Any]
+) -> List[Dict]:
+    tracks = search_result["tracks"]
+    items = tracks["items"]
+
+    while next_page := await app.next_search_page(search_result):
+        tracks = next_page["tracks"]
+        items.extend(tracks["items"])
+        search_result = next_page
+
+    return items
+
+
 async def process_spotify_metadata(
     app, song_data: List[Dict], collection: AsyncIOMotorCollection
 ):
@@ -27,22 +41,20 @@ async def process_spotify_metadata(
         return
 
     search_query = construct_search_query(song_data)
-
-    # async with SpotifyClient(SPOTIFY_ID, SPOTIFY_SECRET) as app:
-    # await app.auth_headers()
-
     spotify_results = await asyncio.gather(
         *(app.search(query=query) for query in search_query)
+    )
+    spotify_items = await asyncio.gather(
+        *(get_all_spotify_items(app, result) for result in spotify_results)
     )
 
     metadata.extend(
         {
             **song,
-            "spotify_search": spotify_result,
+            "spotify_search": items,
             "created_at": datetime.now(tz=timezone.utc),
         }
-        for song, spotify_result in zip(song_data, spotify_results)
-        if spotify_result
+        for song, items in zip(song_data, spotify_items)
     )
 
     if metadata:
