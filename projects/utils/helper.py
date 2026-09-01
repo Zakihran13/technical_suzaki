@@ -65,16 +65,21 @@ def load_song_data(data_path: List[Any] | None = None):
     return pd.read_csv(data_path[0])
 
 
+def _sanitize_query_value(value: str) -> str:
+    # double quotes break Spotify's phrase grouping, so strip them
+    return str(value).replace('"', "").strip()
+
+
 def construct_search_query(data: list[dict]):
     constructed_query = []
 
     for n in data:
-        song_name = n["SONG TITLE"]
-        artist_name = n["ORIGINAL ARTIST"]
+        song_name = _sanitize_query_value(n["SONG TITLE"])
+        artist_name = _sanitize_query_value(n["ORIGINAL ARTIST"])
         n["q"] = (
-            f"track:'{song_name}' artists:'{artist_name}'"
+            f'track:"{song_name}" artist:"{artist_name}"'
             if artist_name
-            else f"track:'{song_name}'"
+            else f'track:"{song_name}"'
         )
 
         constructed_query.append(n)
