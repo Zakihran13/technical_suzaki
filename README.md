@@ -5,3 +5,6 @@ responses in MongoDB, and builds a normalized PostgreSQL catalog for reporting.
 
 The data-quality controls and scalable warehouse design are documented in
 [docs/data-quality-and-storage.md](docs/data-quality-and-storage.md).
+
+Deploy and monitor the Airflow workflow using
+[docs/airflow-deployment.md](docs/airflow-deployment.md).

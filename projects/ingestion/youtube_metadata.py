@@ -81,7 +81,7 @@ async def exec_youtube_metadata(
     coll_mongo = db_mongo["raw_youtube"]
     await coll_mongo.create_index([("CODE", 1)], unique=True, name="code_unique")
 
-    song_batches = split_batch(song_data_df.to_dict("records")[:5], 10)
+    song_batches = split_batch(song_data_df.to_dict("records")[:100], 10)
     rate_limiter = AsyncRateLimiter(max_rate=YOUTUBE_MAX_REQUESTS_PER_SECOND)
     tasks = [
         partial(
