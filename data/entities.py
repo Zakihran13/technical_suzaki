@@ -88,3 +88,43 @@ class SongTrackMatch(Base):
     )
     query: Mapped[str] = mapped_column(Text, primary_key=True)
     result_position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class YouTubeChannel(Base):
+    __tablename__ = "youtube_channels"
+    __table_args__ = {"schema": POSTGRES_SCHEMA}
+
+    channel_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    youtube_url: Mapped[str | None] = mapped_column(Text)
+
+
+class YouTubeVideo(Base):
+    __tablename__ = "youtube_videos"
+    __table_args__ = {"schema": POSTGRES_SCHEMA}
+
+    video_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    channel_id: Mapped[str | None] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.youtube_channels.channel_id")
+    )
+    source_code: Mapped[int | None] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.source_songs.code")
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    youtube_url: Mapped[str | None] = mapped_column(Text)
+
+
+class SongVideoMatch(Base):
+    __tablename__ = "song_video_matches"
+    __table_args__ = {"schema": POSTGRES_SCHEMA}
+
+    source_code: Mapped[int] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.source_songs.code"), primary_key=True
+    )
+    video_id: Mapped[str] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.youtube_videos.video_id"), primary_key=True
+    )
+    query: Mapped[str] = mapped_column(Text, primary_key=True)
+    result_position: Mapped[int] = mapped_column(Integer, nullable=False)

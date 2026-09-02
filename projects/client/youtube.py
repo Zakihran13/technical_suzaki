@@ -37,6 +37,27 @@ class YouTubeClient(BaseAPIClient):
             raise ValueError("YouTube API returned an invalid response")
         return response
 
+    async def search(self, **params) -> dict:
+        """Search public YouTube videos by song and artist query."""
+        response = await self.request(
+            "GET",
+            "/search",
+            params=params,
+        )
+        if not isinstance(response, dict):
+            raise ValueError("YouTube API returned an invalid search response")
+        return response
+
+    async def search_metadata(self, query: str) -> YouTubeVideoMetadata:
+        """Find the first video matching a song query and return its metadata."""
+        response = await self.search(
+            part="snippet", q=query, type="video", maxResults=1, order="relevance"
+        )
+        items = response.get("items", [])
+        if not items or not items[0].get("id", {}).get("videoId"):
+            raise ValueError(f"No YouTube video found for query: {query}")
+        return await self.video_metadata(items[0]["id"]["videoId"])
+
     async def video_metadata(self, video_id: str) -> YouTubeVideoMetadata:
         """Retrieve video metadata and infer music credits from its title."""
         response = await self.video(video_id)

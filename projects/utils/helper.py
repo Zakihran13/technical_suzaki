@@ -105,6 +105,28 @@ def construct_search_query(data: list[dict]) -> list[str]:
     return constructed_queries
 
 
+def construct_youtube_search_params(data: list[dict]) -> list[dict]:
+    """Build YouTube video-search parameters from catalog artist and title fields."""
+    search_params = []
+
+    for record in data:
+        song_title = str(record["SONG TITLE"]).strip()
+        artist = record["ORIGINAL ARTIST"]
+        query = f"{song_title} {artist}".strip() if artist else song_title
+
+        search_params.append(
+            {
+                "q": query,
+                "part": "snippet",
+                "type": "video",
+                "maxResults": 10,
+                "order": "relevance",
+            }
+        )
+
+    return search_params
+
+
 def log_bulk_write_results(results: list) -> None:
     """
     Parses a list of BulkWriteResult objects and Exceptions from asyncio.gather,
