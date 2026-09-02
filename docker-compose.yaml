@@ -1,23 +1,39 @@
 version: "3.8"
 
 services:
-  localstack:
-    image: localstack/localstack:latest
-    container_name: localstack_kinesis
+  mongodb:
+    image: mongo:7.0
+    container_name: music_catalog_mongodb
     ports:
-      - "127.0.0.1:4566:4566"            # LocalStack Gateway
-      - "127.0.0.1:4510-4559:4510-4559"   # External service port range
+      - "127.0.0.1:27017:27017"
     environment:
-      - SERVICES=kinesis                  # Enable Kinesis (optional; defaults to all services)
-      - AWS_DEFAULT_REGION=us-east-1
-      - PERSISTENCE=1                     # Persist state across restarts
-      - DOCKER_HOST=unix:///var/run/docker.sock
+      MONGO_INITDB_DATABASE: "music_catalog"
     volumes:
-      - "./localstack_data:/var/lib/localstack"                   # Data persistence volume
-      - "./init-scripts:/etc/localstack/init/ready.d"              # Auto-run init scripts on startup
-      - "/var/run/docker.sock:/var/run/docker.sock"
+      - mongodb_data:/data/db
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  postgresql:
+    image: postgres:16-alpine
+    container_name: music_catalog_postgresql
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: "music_user"
+      POSTGRES_PASSWORD: "music_password"
+      POSTGRES_DB: "massive_music"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+      - ./data/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U music_user -d massive_music"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongodb_data:
+  postgresql_data:
