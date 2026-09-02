@@ -52,6 +52,18 @@ CREATE TABLE IF NOT EXISTS massive_music.track_artists (
     PRIMARY KEY (track_spotify_id, artist_spotify_id)
 );
 
+CREATE TABLE IF NOT EXISTS massive_music.music_writers (
+    musicbrainz_id VARCHAR(36) PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS massive_music.spotify_track_writers (
+    track_spotify_id VARCHAR(64) REFERENCES massive_music.spotify_tracks(spotify_id),
+    musicbrainz_writer_id VARCHAR(36) REFERENCES massive_music.music_writers(musicbrainz_id),
+    credit_role VARCHAR(32) NOT NULL,
+    PRIMARY KEY (track_spotify_id, musicbrainz_writer_id, credit_role)
+);
+
 CREATE TABLE IF NOT EXISTS massive_music.song_track_matches (
     source_code BIGINT REFERENCES massive_music.source_songs(code),
     track_spotify_id VARCHAR(64) REFERENCES massive_music.spotify_tracks(spotify_id),
@@ -62,6 +74,9 @@ CREATE TABLE IF NOT EXISTS massive_music.song_track_matches (
 
 CREATE INDEX IF NOT EXISTS song_track_matches_track_idx 
     ON massive_music.song_track_matches (track_spotify_id);
+
+CREATE INDEX IF NOT EXISTS spotify_track_writers_track_idx
+    ON massive_music.spotify_track_writers (track_spotify_id);
 
 CREATE TABLE IF NOT EXISTS massive_music.youtube_channels (
     channel_id VARCHAR(64) PRIMARY KEY,

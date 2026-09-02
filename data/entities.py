@@ -78,6 +78,28 @@ class TrackArtist(Base):
     artist_position: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
+class MusicWriter(Base):
+    __tablename__ = "music_writers"
+    __table_args__ = {"schema": POSTGRES_SCHEMA}
+
+    musicbrainz_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class SpotifyTrackWriter(Base):
+    __tablename__ = "spotify_track_writers"
+    __table_args__ = {"schema": POSTGRES_SCHEMA}
+
+    track_spotify_id: Mapped[str] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.spotify_tracks.spotify_id"), primary_key=True
+    )
+    musicbrainz_writer_id: Mapped[str] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.music_writers.musicbrainz_id"),
+        primary_key=True,
+    )
+    credit_role: Mapped[str] = mapped_column(String(32), primary_key=True)
+
+
 class SongTrackMatch(Base):
     __tablename__ = "song_track_matches"
     __table_args__ = {"schema": POSTGRES_SCHEMA}
