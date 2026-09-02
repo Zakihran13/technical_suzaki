@@ -17,6 +17,7 @@ class SourceSong(Base):
     code: Mapped[int] = mapped_column(primary_key=True)
     original_artist: Mapped[str | None] = mapped_column(Text)
     song_title: Mapped[str] = mapped_column(Text, nullable=False)
+    song_writers: Mapped[str | None] = mapped_column(Text)
     search_query: Mapped[str | None] = mapped_column(Text)
     source_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -36,6 +37,7 @@ class SpotifyAlbum(Base):
 
     spotify_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    label: Mapped[str | None] = mapped_column(Text)
     album_type: Mapped[str | None] = mapped_column(String(32))
     release_date: Mapped[str | None] = mapped_column(String(10))
     release_date_precision: Mapped[str | None] = mapped_column(String(10))
@@ -128,3 +130,38 @@ class SongVideoMatch(Base):
     )
     query: Mapped[str] = mapped_column(Text, primary_key=True)
     result_position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class YouTubeSpotifyMatch(Base):
+    __tablename__ = "youtube_spotify_matches"
+    __table_args__ = {"schema": POSTGRES_SCHEMA}
+
+    source_code: Mapped[int] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.source_songs.code"), primary_key=True
+    )
+    track_spotify_id: Mapped[str] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.spotify_tracks.spotify_id"), primary_key=True
+    )
+    video_id: Mapped[str] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.youtube_videos.video_id"), primary_key=True
+    )
+
+
+class SongPlatformCatalog(Base):
+    __tablename__ = "song_platform_catalog"
+    __table_args__ = {"schema": POSTGRES_SCHEMA}
+
+    source_code: Mapped[int] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.source_songs.code"), primary_key=True
+    )
+    track_spotify_id: Mapped[str] = mapped_column(
+        ForeignKey(f"{POSTGRES_SCHEMA}.spotify_tracks.spotify_id"), primary_key=True
+    )
+    song_title: Mapped[str] = mapped_column(Text, nullable=False)
+    song_writers: Mapped[str | None] = mapped_column(Text)
+    isrc: Mapped[str | None] = mapped_column(String(32))
+    artist_name: Mapped[str | None] = mapped_column(Text)
+    recording_title: Mapped[str] = mapped_column(Text, nullable=False)
+    label: Mapped[str | None] = mapped_column(Text)
+    youtube_video_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    spotify_isrc_count: Mapped[int] = mapped_column(Integer, nullable=False)

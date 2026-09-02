@@ -4,9 +4,13 @@ CREATE TABLE IF NOT EXISTS massive_music.source_songs (
     code BIGINT PRIMARY KEY,
     original_artist TEXT,
     song_title TEXT NOT NULL,
+    song_writers TEXT,
     search_query TEXT,
     source_created_at TIMESTAMPTZ
 );
+
+ALTER TABLE massive_music.source_songs
+    ADD COLUMN IF NOT EXISTS song_writers TEXT;
 
 CREATE TABLE IF NOT EXISTS massive_music.spotify_artists (
     spotify_id VARCHAR(64) PRIMARY KEY,
@@ -17,12 +21,16 @@ CREATE TABLE IF NOT EXISTS massive_music.spotify_artists (
 CREATE TABLE IF NOT EXISTS massive_music.spotify_albums (
     spotify_id VARCHAR(64) PRIMARY KEY,
     name TEXT NOT NULL,
+    label TEXT,
     album_type VARCHAR(32),
     release_date VARCHAR(10),
     release_date_precision VARCHAR(10),
     total_tracks INTEGER,
     spotify_url TEXT
 );
+
+ALTER TABLE massive_music.spotify_albums
+    ADD COLUMN IF NOT EXISTS label TEXT;
 
 CREATE TABLE IF NOT EXISTS massive_music.spotify_tracks (
     spotify_id VARCHAR(64) PRIMARY KEY,
@@ -81,3 +89,35 @@ CREATE TABLE IF NOT EXISTS massive_music.song_video_matches (
 
 CREATE INDEX IF NOT EXISTS song_video_matches_video_idx 
     ON massive_music.song_video_matches (video_id);
+
+CREATE TABLE IF NOT EXISTS massive_music.youtube_spotify_matches (
+    source_code BIGINT REFERENCES massive_music.source_songs(code),
+    track_spotify_id VARCHAR(64) REFERENCES massive_music.spotify_tracks(spotify_id),
+    video_id VARCHAR(64) REFERENCES massive_music.youtube_videos(video_id),
+    PRIMARY KEY (source_code, track_spotify_id, video_id)
+);
+
+ALTER TABLE massive_music.youtube_spotify_matches
+    DROP COLUMN IF EXISTS title_similarity,
+    DROP COLUMN IF EXISTS context_similarity,
+    DROP COLUMN IF EXISTS match_score;
+
+CREATE INDEX IF NOT EXISTS youtube_spotify_matches_track_idx
+    ON massive_music.youtube_spotify_matches (track_spotify_id);
+
+CREATE TABLE IF NOT EXISTS massive_music.song_platform_catalog (
+    source_code BIGINT REFERENCES massive_music.source_songs(code),
+    track_spotify_id VARCHAR(64) REFERENCES massive_music.spotify_tracks(spotify_id),
+    song_title TEXT NOT NULL,
+    song_writers TEXT,
+    isrc VARCHAR(32),
+    artist_name TEXT,
+    recording_title TEXT NOT NULL,
+    label TEXT,
+    youtube_video_count INTEGER NOT NULL,
+    spotify_isrc_count INTEGER NOT NULL,
+    PRIMARY KEY (source_code, track_spotify_id)
+);
+
+CREATE INDEX IF NOT EXISTS song_platform_catalog_source_idx
+    ON massive_music.song_platform_catalog (source_code);

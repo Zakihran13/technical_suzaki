@@ -108,6 +108,7 @@ async def _ingest_document(connection: AsyncConnection, document: dict) -> int:
             "code": source_code,
             "original_artist": original_artist,
             "song_title": document["SONG TITLE"],
+            "song_writers": document.get("SONG WRITERS"),
             "search_query": document.get("q"),
             "source_created_at": document.get("created_at"),
         },
@@ -144,6 +145,7 @@ async def _ingest_document(connection: AsyncConnection, document: dict) -> int:
                 {
                     "spotify_id": album_id,
                     "name": album.get("name", ""),
+                    "label": album.get("label"),
                     "album_type": album.get("album_type"),
                     "release_date": album.get("release_date"),
                     "release_date_precision": album.get("release_date_precision"),
