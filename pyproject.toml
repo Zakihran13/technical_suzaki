@@ -31,7 +31,6 @@ packages = [{include = "projects"}, {include = "data"}, {include = "dags"}]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[dependency-groups]
-dev = [
-    "ipykernel (>=7.3.0,<8.0.0)"
-]
+[tool.poetry.group.dev.dependencies]
+ipykernel = ">=7.3.0,<8.0.0"
+pytest = ">=8.0.0,<9.0.0"

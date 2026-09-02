@@ -136,3 +136,34 @@ CREATE TABLE IF NOT EXISTS massive_music.song_platform_catalog (
 
 CREATE INDEX IF NOT EXISTS song_platform_catalog_source_idx
     ON massive_music.song_platform_catalog (source_code);
+
+CREATE TABLE IF NOT EXISTS massive_music.data_quality_events (
+    event_id BIGSERIAL PRIMARY KEY,
+    pipeline_name VARCHAR(64) NOT NULL,
+    source_code BIGINT,
+    severity VARCHAR(16) NOT NULL CHECK (severity IN ('warning', 'error')),
+    rule_name VARCHAR(128) NOT NULL,
+    message TEXT NOT NULL,
+    raw_record JSONB NOT NULL,
+    detected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ,
+    resolution_note TEXT
+);
+
+CREATE INDEX IF NOT EXISTS data_quality_events_open_idx
+    ON massive_music.data_quality_events (pipeline_name, severity, detected_at)
+    WHERE resolved_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS massive_music.data_quality_runs (
+    run_id BIGSERIAL PRIMARY KEY,
+    pipeline_name VARCHAR(64) NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ NOT NULL,
+    records_read INTEGER NOT NULL CHECK (records_read >= 0),
+    records_loaded INTEGER NOT NULL CHECK (records_loaded >= 0),
+    records_rejected INTEGER NOT NULL CHECK (records_rejected >= 0),
+    records_warned INTEGER NOT NULL CHECK (records_warned >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS data_quality_runs_pipeline_idx
+    ON massive_music.data_quality_runs (pipeline_name, completed_at DESC);

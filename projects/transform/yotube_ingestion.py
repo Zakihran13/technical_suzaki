@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timezone
 from difflib import SequenceMatcher
 import re
 from typing import Any
@@ -17,6 +17,12 @@ from data.entities import (
     YouTubeVideo,
 )
 from projects.config import DB_NAME
+from projects.transform.data_quality import (
+    QualityIssue,
+    record_quality_events,
+    record_quality_run,
+    validate_source_document,
+)
 
 TITLE_SIMILARITY_THRESHOLD = 0.90
 
@@ -56,7 +62,7 @@ def _parse_published_at(value: str | None) -> datetime | None:
 def _title_similarity(source_title: str, candidate_title: str) -> float:
     source_tokens = set(source_title.split())
     candidate_tokens = set(candidate_title.split())
-    if not source_tokens or not source_tokens <= candidate_tokens:
+    if not source_tokens or not candidate_tokens:
         return 0.0
 
     return SequenceMatcher(None, source_title, candidate_title).ratio()
@@ -94,10 +100,21 @@ def _select_videos(document: dict, videos: list[dict]) -> list[tuple[int, dict]]
     return [(position, video)]
 
 
-async def _ingest_document(connection: AsyncConnection, document: dict) -> int:
-    if document.get("CODE") is None or not document.get("SONG TITLE"):
-        logger.warning("Skipping MongoDB record missing CODE or SONG TITLE.")
-        return 0
+async def _ingest_document(connection: AsyncConnection, document: dict) -> tuple[int, int, int]:
+    issues = validate_source_document(document)
+    if issues:
+        await record_quality_events(connection, "youtube_normalization", document, issues)
+        logger.warning("Skipping invalid MongoDB YouTube record.")
+        return 0, 1, 0
+
+    if not list(_search_results(document)):
+        warning = QualityIssue(
+            "warning",
+            "youtube_search_payload",
+            "YouTube search response is missing or malformed.",
+        )
+        await record_quality_events(connection, "youtube_normalization", document, [warning])
+        return 0, 0, 1
 
     source_code = int(document["CODE"])
 
@@ -154,7 +171,7 @@ async def _ingest_document(connection: AsyncConnection, document: dict) -> int:
             )
             match_count += 1
 
-    return match_count
+    return match_count, 0, 0
 
 
 async def ingest_youtube_metadata(batch_size: int = 250) -> int:
@@ -163,7 +180,12 @@ async def ingest_youtube_metadata(batch_size: int = 250) -> int:
     await AsyncMongoDBConnection.verify_connection()
     collection = get_async_mongodb(DB_NAME)["raw_youtube"]
     engine = init_async_db()
+    started_at = datetime.now(timezone.utc)
     ingested_matches = 0
+    records_read = 0
+    records_loaded = 0
+    records_rejected = 0
+    records_warned = 0
     documents: list[dict] = []
     try:
         async for document in collection.find({}):
@@ -171,12 +193,32 @@ async def ingest_youtube_metadata(batch_size: int = 250) -> int:
             if len(documents) == batch_size:
                 async with engine.begin() as connection:
                     for item in documents:
-                        ingested_matches += await _ingest_document(connection, item)
+                        match_count, rejected, warned = await _ingest_document(connection, item)
+                        ingested_matches += match_count
+                        records_rejected += rejected
+                        records_warned += warned
+                        records_read += 1
+                        records_loaded += int(not rejected and not warned)
                 documents.clear()
         if documents:
             async with engine.begin() as connection:
                 for item in documents:
-                    ingested_matches += await _ingest_document(connection, item)
+                    match_count, rejected, warned = await _ingest_document(connection, item)
+                    ingested_matches += match_count
+                    records_rejected += rejected
+                    records_warned += warned
+                    records_read += 1
+                    records_loaded += int(not rejected and not warned)
+        async with engine.begin() as connection:
+            await record_quality_run(
+                connection,
+                "youtube_normalization",
+                started_at,
+                records_read,
+                records_loaded,
+                records_rejected,
+                records_warned,
+            )
     finally:
         await engine.dispose()
         AsyncMongoDBConnection.close()

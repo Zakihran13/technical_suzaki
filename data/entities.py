@@ -1,6 +1,8 @@
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 POSTGRES_SCHEMA = "massive_music"
@@ -187,3 +189,33 @@ class SongPlatformCatalog(Base):
     label: Mapped[str | None] = mapped_column(Text)
     youtube_video_count: Mapped[int] = mapped_column(Integer, nullable=False)
     spotify_isrc_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class DataQualityEvent(Base):
+    __tablename__ = "data_quality_events"
+    __table_args__ = {"schema": POSTGRES_SCHEMA}
+
+    event_id: Mapped[int] = mapped_column(primary_key=True)
+    pipeline_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_code: Mapped[int | None] = mapped_column(Integer)
+    severity: Mapped[str] = mapped_column(String(16), nullable=False)
+    rule_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    raw_record: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolution_note: Mapped[str | None] = mapped_column(Text)
+
+
+class DataQualityRun(Base):
+    __tablename__ = "data_quality_runs"
+    __table_args__ = {"schema": POSTGRES_SCHEMA}
+
+    run_id: Mapped[int] = mapped_column(primary_key=True)
+    pipeline_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    records_read: Mapped[int] = mapped_column(Integer, nullable=False)
+    records_loaded: Mapped[int] = mapped_column(Integer, nullable=False)
+    records_rejected: Mapped[int] = mapped_column(Integer, nullable=False)
+    records_warned: Mapped[int] = mapped_column(Integer, nullable=False)
