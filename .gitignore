@@ -1,3 +1,6 @@
+# poc file
+poc.ipynb
+
 # airflow files
 *.cfg
 *.db

@@ -1,0 +1,97 @@
+from typing import List, Dict
+
+import pandas as pd
+import asyncio
+import numpy as np
+from loguru import logger
+from functools import partial
+import aiometer
+from datetime import datetime, timezone
+from motor.motor_asyncio import AsyncIOMotorCollection
+
+from projects.client.spotify import SpotifyClient
+from projects.utils.helper import load_song_data, split_batch, construct_search_query
+from projects.utils.rate_limiter import AsyncRateLimiter
+from projects.config import (
+    SPOTIFY_ID,
+    SPOTIFY_SECRET,
+    DB_NAME,
+    SPOTIFY_MAX_REQUESTS_PER_SECOND,
+    SPOTIFY_MAX_CONCURRENT_BATCHES,
+)
+from data.client import get_async_mongodb
+from data.statements import upsert_data
+
+
+async def process_spotify_metadata(
+    song_data: List[Dict],
+    collection: AsyncIOMotorCollection,
+    rate_limiter: AsyncRateLimiter,
+):
+    metadata = []
+    if not song_data:
+        logger.error("no data is found")
+        return
+
+    async with SpotifyClient(
+        SPOTIFY_ID, SPOTIFY_SECRET, rate_limiter=rate_limiter
+    ) as app:
+        await app.auth_headers()
+        search_query = construct_search_query(song_data)
+        spotify_results = await aiometer.run_all(
+            [partial(app.search, query=query) for query in search_query],
+            max_at_once=SPOTIFY_MAX_REQUESTS_PER_SECOND,
+        )
+
+    metadata.extend(
+        {
+            **song,
+            "q": query,
+            "spotify_search": items,
+            "created_at": datetime.now(tz=timezone.utc),
+        }
+        for song, query, items in zip(song_data, search_query, spotify_results)
+    )
+
+    if metadata:
+        try:
+            await upsert_data(collection, metadata, conflict_cols=["CODE"])
+        except Exception as e:
+            unique_codes = " ".join(
+                dict.fromkeys(str(d["CODE"]) for d in song_data if "CODE" in d)
+            )
+            logger.error(
+                f"failed to insert the data: **{e}** \nerror_data: **{unique_codes}**"
+            )
+
+
+async def exec_spotify_metadata(song_data_df: pd.DataFrame = pd.DataFrame([])):
+    if song_data_df.empty:
+        song_data_df = load_song_data()
+        song_data_df = song_data_df.replace({np.nan: None})
+
+    logger.info("preparing db connection")
+    db_mongo = get_async_mongodb(DB_NAME)
+    coll_mongo = db_mongo["raw_spotify"]
+    await coll_mongo.create_index(
+        [("CODE", 1)],
+        unique=1,
+        name="code_unique",
+    )
+
+    song_data = split_batch(song_data_df.to_dict("records")[:100], 10)
+    rate_limiter = AsyncRateLimiter(max_rate=SPOTIFY_MAX_REQUESTS_PER_SECOND)
+
+    tasks = [
+        partial(process_spotify_metadata, data, coll_mongo, rate_limiter)
+        for data in song_data
+    ]
+    try:
+        logger.info(f"initiating data process. found {len(tasks)} batch process.")
+        await aiometer.run_all(tasks, max_at_once=SPOTIFY_MAX_CONCURRENT_BATCHES)
+    except Exception as e:
+        logger.error(f"failed while running the process: **{e}**")
+
+
+if __name__ == "__main__":
+    asyncio.run(exec_spotify_metadata())
